@@ -9,6 +9,24 @@ enum Token {
     Slash,
 }
 
+// #[derive(Debug, PartialEq)]
+// struct Lexer<'a> {
+//     current: Token,
+//     next: Token,
+//     code: &'a str,
+// }
+
+// impl<'a> Iterator for Lexer<'a> {
+//     type Item = Token;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let cur = self.current;
+//         self.current = self.next;
+//         self.next = self.lex(code);
+//         Some(cur)
+//     }
+// }
+
 #[derive(Debug, PartialEq)]
 struct Lexed<'a> {
     token: Token,
@@ -61,13 +79,14 @@ fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
     let mut chars = code.chars();
     let next = chars.next();
     match next {
-        Some(target) => Some(Lexed::new(token, &chars.as_str())),
+        Some(c) if c == target => Some(Lexed::new(token, &chars.as_str())),
         _ => None
     }
 }
 
-pub fn lex(code: &str) {
-    println!("{}", code);
+fn lex(code: &str) -> Option<Lexed> {
+    let functions = [l_brace, r_brace, plus, minus, asterisk, slash, number];
+    functions.iter().find_map(|f| f(code))
 }
 
 #[cfg(test)]
@@ -79,12 +98,20 @@ mod tests {
         let test = "()";
         let expect = Some(Lexed::new(Token::LBrace, &")"));
         assert_eq!(l_brace(&test), expect);
+
+        let test = "))";
+        let expect = None;
+        assert_eq!(l_brace(&test), expect);
     }
 
     #[test]
     fn test_r_brace() {
         let test = "))";
         let expect = Some(Lexed::new(Token::RBrace, &")"));
+        assert_eq!(r_brace(&test), expect);
+
+        let test = "()";
+        let expect = None;
         assert_eq!(r_brace(&test), expect);
     }
 
@@ -113,6 +140,10 @@ mod tests {
         let expect = Some(Lexed::new(Token::Plus, &" 1 2"));
         assert_eq!(plus(&test), expect);
         
+        let test = "1+2";
+        let expect = None;
+        assert_eq!(plus(&test), expect);
+
         let test = "-";
         let expect = Some(Lexed::new(Token::Minus, &""));
         assert_eq!(minus(&test), expect);
@@ -136,5 +167,12 @@ mod tests {
         let test = "/ 1 2";
         let expect = Some(Lexed::new(Token::Slash, &" 1 2"));
         assert_eq!(slash(&test), expect);
+    }
+
+    #[test]
+    fn test_lex() {
+        let test = "123c";
+        let expect = Some(Lexed::new(Token::Number(123), &"c"));
+        assert_eq!(lex(&test), expect);
     }
 }
