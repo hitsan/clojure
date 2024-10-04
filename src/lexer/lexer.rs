@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum Token {
     LBrace,
     RBrace,
@@ -9,23 +9,94 @@ enum Token {
     Slash,
 }
 
-// #[derive(Debug, PartialEq)]
-// struct Lexer<'a> {
-//     current: Token,
-//     next: Token,
-//     code: &'a str,
-// }
+#[derive(Debug, PartialEq)]
+struct Lexer<'a> {
+    current: Token,
+    code: &'a str,
+}
 
-// impl<'a> Iterator for Lexer<'a> {
-//     type Item = Token;
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let cur = self.current;
-//         self.current = self.next;
-//         self.next = self.lex(code);
-//         Some(cur)
-//     }
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        let token = self.current;
+        let lexed = Self::lex(self.code)?;
+        self.current = lexed.token;
+        self.code = lexed.rest;
+        Some(token)
+    }
+}
+
+impl<'a> Lexer<'a>  {
+    pub fn new(code: &'a str) -> Self {
+        let lexed = if let Some(cur) = Self::lex(code) {
+            cur
+        } else {
+            panic!("Illegal input");
+        };
+        let current = lexed.token;
+        let code = lexed.rest;
+        Lexer { current, code }
+    }
+
+    fn lex(code: &str) -> Option<Lexed> {
+        let functions = [
+            Self::l_brace, 
+            Self::r_brace,
+            Self::plus,
+            Self::minus,
+            Self::asterisk,
+            Self::slash, 
+            Self::number];
+        functions.iter().find_map(|f| f(code))
+    }
+
+    fn number(code: &str) -> Option<Lexed> {
+        let mut chars = code.chars();
+        let index = chars.position(|c| !c.is_numeric()).unwrap_or(code.len());
+        if index == 0 { return None }
+        let num = &code[..index];
+        let rest = &code[index..];
+        let num = num.parse::<i32>();
+        match num {
+            Ok(n) => Some(Lexed::new(Token::Number(n), rest)),
+            Err(_) => None
+        }
+    }
+    
+    fn l_brace(code: &str) -> Option<Lexed> {
+        Self::char(code, '(', Token::LBrace)
+    }
+    
+    fn r_brace(code: &str) -> Option<Lexed> {
+        Self::char(code, ')', Token::RBrace)
+    }
+    
+    fn plus(code: &str) -> Option<Lexed> {
+        Self::char(code, '+', Token::Plus)
+    }
+    
+    fn minus(code: &str) -> Option<Lexed> {
+        Self::char(code, '-', Token::Minus)
+    }
+    
+    fn asterisk(code: &str) -> Option<Lexed> {
+        Self::char(code, '*', Token::Asterisk)
+    }
+    
+    fn slash(code: &str) -> Option<Lexed> {
+        Self::char(code, '/', Token::Slash)
+    }
+    
+    fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
+        let mut chars = code.chars();
+        let next = chars.next();
+        match next {
+            Some(c) if c == target => Some(Lexed::new(token, &chars.as_str())),
+            _ => None
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 struct Lexed<'a> {
@@ -38,57 +109,6 @@ impl<'a> Lexed<'a> {
     }
 }
 
-fn number(code: &str) -> Option<Lexed> {
-    let mut chars = code.chars();
-    let index = chars.position(|c| !c.is_numeric()).unwrap_or(code.len());
-    if index == 0 { return None }
-    let num = &code[..index];
-    let rest = &code[index..];
-    let num = num.parse::<i32>();
-    match num {
-        Ok(n) => Some(Lexed::new(Token::Number(n), rest)),
-        Err(_) => None
-    }
-}
-
-fn l_brace(code: &str) -> Option<Lexed> {
-    char(code, '(', Token::LBrace)
-}
-
-fn r_brace(code: &str) -> Option<Lexed> {
-    char(code, ')', Token::RBrace)
-}
-
-fn plus(code: &str) -> Option<Lexed> {
-    char(code, '+', Token::Plus)
-}
-
-fn minus(code: &str) -> Option<Lexed> {
-    char(code, '-', Token::Minus)
-}
-
-fn asterisk(code: &str) -> Option<Lexed> {
-    char(code, '*', Token::Asterisk)
-}
-
-fn slash(code: &str) -> Option<Lexed> {
-    char(code, '/', Token::Slash)
-}
-
-fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
-    let mut chars = code.chars();
-    let next = chars.next();
-    match next {
-        Some(c) if c == target => Some(Lexed::new(token, &chars.as_str())),
-        _ => None
-    }
-}
-
-fn lex(code: &str) -> Option<Lexed> {
-    let functions = [l_brace, r_brace, plus, minus, asterisk, slash, number];
-    functions.iter().find_map(|f| f(code))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,82 +117,98 @@ mod tests {
     fn test_l_brace() {
         let test = "()";
         let expect = Some(Lexed::new(Token::LBrace, &")"));
-        assert_eq!(l_brace(&test), expect);
+        assert_eq!(Lexer::l_brace(&test), expect);
 
         let test = "))";
         let expect = None;
-        assert_eq!(l_brace(&test), expect);
+        assert_eq!(Lexer::l_brace(&test), expect);
     }
 
     #[test]
     fn test_r_brace() {
         let test = "))";
         let expect = Some(Lexed::new(Token::RBrace, &")"));
-        assert_eq!(r_brace(&test), expect);
+        assert_eq!(Lexer::r_brace(&test), expect);
 
         let test = "()";
         let expect = None;
-        assert_eq!(r_brace(&test), expect);
+        assert_eq!(Lexer::r_brace(&test), expect);
     }
 
     #[test]
     fn test_number() {
         let test = "123c";
         let expect = Some(Lexed::new(Token::Number(123), &"c"));
-        assert_eq!(number(&test), expect);
+        assert_eq!(Lexer::number(&test), expect);
 
         let test = "123";
         let expect = Some(Lexed::new(Token::Number(123), &""));
-        assert_eq!(number(&test), expect);
+        assert_eq!(Lexer::number(&test), expect);
 
         let test = "+123";
         let expect = None;
-        assert_eq!(number(&test), expect);
+        assert_eq!(Lexer::number(&test), expect);
     }
 
     #[test]
     fn test_operator() {
         let test = "+";
         let expect = Some(Lexed::new(Token::Plus, &""));
-        assert_eq!(plus(&test), expect);
+        assert_eq!(Lexer::plus(&test), expect);
 
         let test = "+ 1 2";
         let expect = Some(Lexed::new(Token::Plus, &" 1 2"));
-        assert_eq!(plus(&test), expect);
+        assert_eq!(Lexer::plus(&test), expect);
         
         let test = "1+2";
         let expect = None;
-        assert_eq!(plus(&test), expect);
+        assert_eq!(Lexer::plus(&test), expect);
 
         let test = "-";
         let expect = Some(Lexed::new(Token::Minus, &""));
-        assert_eq!(minus(&test), expect);
+        assert_eq!(Lexer::minus(&test), expect);
 
         let test = "- 1 2";
         let expect = Some(Lexed::new(Token::Minus, &" 1 2"));
-        assert_eq!(minus(&test), expect);
+        assert_eq!(Lexer::minus(&test), expect);
 
         let test = "*";
         let expect = Some(Lexed::new(Token::Asterisk, &""));
-        assert_eq!(asterisk(&test), expect);
+        assert_eq!(Lexer::asterisk(&test), expect);
 
         let test = "* 1 2";
         let expect = Some(Lexed::new(Token::Asterisk, &" 1 2"));
-        assert_eq!(asterisk(&test), expect);
+        assert_eq!(Lexer::asterisk(&test), expect);
 
         let test = "/";
         let expect = Some(Lexed::new(Token::Slash, &""));
-        assert_eq!(slash(&test), expect);
+        assert_eq!(Lexer::slash(&test), expect);
 
         let test = "/ 1 2";
         let expect = Some(Lexed::new(Token::Slash, &" 1 2"));
-        assert_eq!(slash(&test), expect);
+        assert_eq!(Lexer::slash(&test), expect);
     }
 
     #[test]
     fn test_lex() {
         let test = "123c";
         let expect = Some(Lexed::new(Token::Number(123), &"c"));
-        assert_eq!(lex(&test), expect);
+        assert_eq!(Lexer::lex(&test), expect);
+
+        let test = "+ 1 2";
+        let expect = Some(Lexed::new(Token::Plus, &" 1 2"));
+        assert_eq!(Lexer::lex(&test), expect);
+        
+        let test = "1+2";
+        let expect = Some(Lexed::new(Token::Number(1), &"+2"));
+        assert_eq!(Lexer::lex(&test), expect);
+
+        let test = "))";
+        let expect = Some(Lexed::new(Token::RBrace, &")"));
+        assert_eq!(Lexer::r_brace(&test), expect);
+
+        let test = "~";
+        let expect = None;
+        assert_eq!(Lexer::r_brace(&test), expect);
     }
 }
