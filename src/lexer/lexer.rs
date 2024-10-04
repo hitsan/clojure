@@ -11,7 +11,7 @@ enum Token {
 
 #[derive(Debug, PartialEq)]
 struct Lexer<'a> {
-    current: Token,
+    current: Option<Token>,
     code: &'a str,
 }
 
@@ -20,23 +20,26 @@ impl<'a> Iterator for Lexer<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let token = self.current;
-        let lexed = Self::lex(self.code)?;
-        self.current = lexed.token;
-        self.code = lexed.rest;
-        Some(token)
+        if let Some(lexed) = Self::lex(self.code) {
+            self.current = Some(lexed.token);
+            self.code = lexed.rest;
+        } else {
+            self.current = None;
+            self.code = &"";
+        };
+        token
     }
 }
 
 impl<'a> Lexer<'a>  {
     pub fn new(code: &'a str) -> Self {
-        let lexed = if let Some(cur) = Self::lex(code) {
-            cur
+        if let Some(lexed) = Self::lex(code) {
+            let current = Some(lexed.token);
+            let code = lexed.rest;
+            Lexer { current, code }
         } else {
-            panic!("Illegal input");
-        };
-        let current = lexed.token;
-        let code = lexed.rest;
-        Lexer { current, code }
+            Lexer { current: None, code: &"" }
+        }
     }
 
     fn lex(code: &str) -> Option<Lexed> {
@@ -210,5 +213,14 @@ mod tests {
         let test = "~";
         let expect = None;
         assert_eq!(Lexer::r_brace(&test), expect);
+    }
+
+    #[test]
+    fn test_lexer() {
+        let code = "+12";
+        let mut lexer = Lexer::new(&code);
+        assert_eq!(lexer.next(), Some(Token::Plus));
+        assert_eq!(lexer.next(), Some(Token::Number(12)));
+        assert_eq!(lexer.next(), None);
     }
 }
