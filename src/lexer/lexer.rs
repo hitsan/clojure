@@ -218,8 +218,11 @@ mod tests {
     #[test]
     fn test_lexer() {
         let code = "+12";
-        let mut lexer = Lexer::new(&code);
+        let lexer = Lexer::new(&code);
+        let mut lexer = lexer.peekable();
+        assert_eq!(lexer.peek(), Some(&Token::Plus));
         assert_eq!(lexer.next(), Some(Token::Plus));
+        assert_eq!(lexer.peek(), Some(&Token::Number(12)));
         assert_eq!(lexer.next(), Some(Token::Number(12)));
         assert_eq!(lexer.next(), None);
     }
