@@ -16,6 +16,8 @@ enum Token {
     Question,
     Equals,
     Number(i32),
+    Nil,
+    Bool(bool),
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,7 +70,9 @@ impl<'a> Lexer<'a>  {
             Self::apostrophe,
             Self::question,
             Self::equals,
-            Self::number, 
+            Self::number,
+            Self::nil,
+            Self::boolean,
             ];
         functions.iter().find_map(|f| {
             let code = code.trim_start();
@@ -155,6 +159,27 @@ impl<'a> Lexer<'a>  {
         match next {
             Some(c) if c == target => Some(Lexed::new(token, &chars.as_str())),
             _ => None
+        }
+    }
+
+    fn nil(code: &str) -> Option<Lexed> {
+        Self::str(code, "nil".to_string(), Token::Nil)
+    }
+
+    fn boolean(code: &str) -> Option<Lexed> {
+        let result = Self::str(code, "true".to_string(), Token::Bool(true));
+        if result.is_some() { return result }
+        Self::str(code, "false".to_string(), Token::Bool(false))
+    }
+
+    fn str(code: &str, target: String, token: Token) -> Option<Lexed> {
+        let code = code;
+        let len = target.len();
+        if code.len() < len { return None }
+        if &code[..len] == target {
+            Some(Lexed::new(token, &code[len..]))
+        } else {
+            None
         }
     }
 }
@@ -361,6 +386,40 @@ mod tests {
         let test = "~";
         let expect = None;
         assert_eq!(Lexer::r_paren(&test), expect);
+    }
+
+    #[test]
+    fn test_nil() {
+        let test = "nil 1";
+        let expect = Some(Lexed::new(Token::Nil, &" 1"));
+        assert_eq!(Lexer::nil(&test), expect);
+
+        let test = "+ 1 2";
+        let expect = None;
+        assert_eq!(Lexer::nil(&test), expect);
+
+        let test = "ni";
+        let expect = None;
+        assert_eq!(Lexer::nil(&test), expect);
+    }
+
+    #[test]
+    fn test_boolean() {
+        let test = "true";
+        let expect = Some(Lexed::new(Token::Bool(true), &""));
+        assert_eq!(Lexer::boolean(&test), expect);
+
+        let test = "false";
+        let expect = Some(Lexed::new(Token::Bool(false), &""));
+        assert_eq!(Lexer::boolean(&test), expect);
+
+        let test = "+ 1 2";
+        let expect = None;
+        assert_eq!(Lexer::boolean(&test), expect);
+
+        let test = "tr";
+        let expect = None;
+        assert_eq!(Lexer::boolean(&test), expect);
     }
 
     #[test]
