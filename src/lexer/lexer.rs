@@ -11,6 +11,7 @@ enum Token {
     Slash,
     Ban,
     Underbar,
+    Apostrophe,
 }
 
 #[derive(Debug, PartialEq)]
@@ -114,6 +115,10 @@ impl<'a> Lexer<'a>  {
 
     fn underbar(code: &str) -> Option<Lexed> {
         Self::char(code, '_', Token::Underbar)
+    }
+
+    fn apostrophe(code: &str) -> Option<Lexed> {
+        Self::char(code, '\'', Token::Apostrophe)
     }
     
     fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
@@ -253,6 +258,17 @@ mod tests {
         let test = "1 2";
         let expect = None;
         assert_eq!(Lexer::underbar(&test), expect);
+    }
+
+    #[test]
+    fn test_apostrophe() {
+        let test = "'(+ 1 2)";
+        let expect = Some(Lexed::new(Token::Apostrophe, &"(+ 1 2)"));
+        assert_eq!(Lexer::apostrophe(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::apostrophe(&test), expect);
     }
 
     #[test]
