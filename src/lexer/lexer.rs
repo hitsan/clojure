@@ -4,11 +4,18 @@ enum Token {
     RParen,
     LBrace,
     RBrace,
-    Number(i32),
+    LAngleBracket,
+    RAngleBracket,
     Plus,
     Minus,
     Asterisk,
     Slash,
+    Ban,
+    Underbar,
+    Apostrophe,
+    Question,
+    Equals,
+    Number(i32),
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,11 +57,19 @@ impl<'a> Lexer<'a>  {
             Self::r_paren,
             Self::l_brace, 
             Self::r_brace,
+            Self::l_angle_bracket,
+            Self::r_angle_bracket,
             Self::plus,
             Self::minus,
             Self::asterisk,
             Self::slash, 
-            Self::number];
+            Self::ban,
+            Self::underbar,
+            Self::apostrophe,
+            Self::question,
+            Self::equals,
+            Self::number, 
+            ];
         functions.iter().find_map(|f| {
             let code = code.trim_start();
             f(code)
@@ -89,6 +104,14 @@ impl<'a> Lexer<'a>  {
     fn r_brace(code: &str) -> Option<Lexed> {
         Self::char(code, ']', Token::RBrace)
     }
+
+    fn l_angle_bracket(code: &str) -> Option<Lexed> {
+        Self::char(code, '<', Token::LAngleBracket)
+    }
+    
+    fn r_angle_bracket(code: &str) -> Option<Lexed> {
+        Self::char(code, '>', Token::RAngleBracket)
+    }
     
     fn plus(code: &str) -> Option<Lexed> {
         Self::char(code, '+', Token::Plus)
@@ -104,6 +127,26 @@ impl<'a> Lexer<'a>  {
     
     fn slash(code: &str) -> Option<Lexed> {
         Self::char(code, '/', Token::Slash)
+    }
+
+    fn ban(code: &str) -> Option<Lexed> {
+        Self::char(code, '!', Token::Ban)
+    }
+
+    fn underbar(code: &str) -> Option<Lexed> {
+        Self::char(code, '_', Token::Underbar)
+    }
+
+    fn apostrophe(code: &str) -> Option<Lexed> {
+        Self::char(code, '\'', Token::Apostrophe)
+    }
+
+    fn question(code: &str) -> Option<Lexed> {
+        Self::char(code, '?', Token::Question)
+    }
+
+    fn equals(code: &str) -> Option<Lexed> {
+        Self::char(code, '=', Token::Equals)
     }
     
     fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
@@ -224,6 +267,80 @@ mod tests {
     }
 
     #[test]
+    fn test_ban() {
+        let test = "! 1 2";
+        let expect = Some(Lexed::new(Token::Ban, &" 1 2"));
+        assert_eq!(Lexer::ban(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::ban(&test), expect);
+    }
+
+    #[test]
+    fn test_underbar() {
+        let test = "_ 1 2";
+        let expect = Some(Lexed::new(Token::Underbar, &" 1 2"));
+        assert_eq!(Lexer::underbar(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::underbar(&test), expect);
+    }
+
+    #[test]
+    fn test_apostrophe() {
+        let test = "'(+ 1 2)";
+        let expect = Some(Lexed::new(Token::Apostrophe, &"(+ 1 2)"));
+        assert_eq!(Lexer::apostrophe(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::apostrophe(&test), expect);
+    }
+
+    #[test]
+    fn test_question() {
+        let test = "?(+ 1 2)";
+        let expect = Some(Lexed::new(Token::Question, &"(+ 1 2)"));
+        assert_eq!(Lexer::question(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::question(&test), expect);
+    }
+
+    #[test]
+    fn test_angle_brackets() {
+        let test = "<+ 1 2>";
+        let expect = Some(Lexed::new(Token::LAngleBracket, &"+ 1 2>"));
+        assert_eq!(Lexer::l_angle_bracket(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::l_angle_bracket(&test), expect);
+
+        let test = ">";
+        let expect = Some(Lexed::new(Token::RAngleBracket, &""));
+        assert_eq!(Lexer::r_angle_bracket(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::r_angle_bracket(&test), expect);
+    }
+
+    #[test]
+    fn test_equals() {
+        let test = "= 1 2)";
+        let expect = Some(Lexed::new(Token::Equals, &" 1 2)"));
+        assert_eq!(Lexer::equals(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::equals(&test), expect);
+    }
+
+    #[test]
     fn test_lex() {
         let test = "123c";
         let expect = Some(Lexed::new(Token::Number(123), &"c"));
@@ -272,6 +389,40 @@ mod tests {
         assert_eq!(lexer.next(), Some(Token::Number(1)));
         assert_eq!(lexer.peek(), Some(&Token::Number(2)));
         assert_eq!(lexer.next(), Some(Token::Number(2)));
+        assert_eq!(lexer.peek(), Some(&Token::RParen));
+        assert_eq!(lexer.next(), Some(Token::RParen));
+        assert_eq!(lexer.next(), None);
+
+        let code = "(= 1 2)";
+        let lexer = Lexer::new(&code);
+        let mut lexer = lexer.peekable();
+        assert_eq!(lexer.peek(), Some(&Token::LParen));
+        assert_eq!(lexer.next(), Some(Token::LParen));
+        assert_eq!(lexer.peek(), Some(&Token::Equals));
+        assert_eq!(lexer.next(), Some(Token::Equals));
+        assert_eq!(lexer.peek(), Some(&Token::Number(1)));
+        assert_eq!(lexer.next(), Some(Token::Number(1)));
+        assert_eq!(lexer.peek(), Some(&Token::Number(2)));
+        assert_eq!(lexer.next(), Some(Token::Number(2)));
+        assert_eq!(lexer.peek(), Some(&Token::RParen));
+        assert_eq!(lexer.next(), Some(Token::RParen));
+        assert_eq!(lexer.next(), None);
+
+        let code = "(= 1 (+ 2 3))";
+        let lexer = Lexer::new(&code);
+        let mut lexer = lexer.peekable();
+        assert_eq!(lexer.peek(), Some(&Token::LParen));
+        assert_eq!(lexer.next(), Some(Token::LParen));
+        assert_eq!(lexer.peek(), Some(&Token::Equals));
+        assert_eq!(lexer.next(), Some(Token::Equals));
+        assert_eq!(lexer.peek(), Some(&Token::Number(1)));
+        assert_eq!(lexer.next(), Some(Token::Number(1)));
+        assert_eq!(lexer.next(), Some(Token::LParen));
+        assert_eq!(lexer.next(), Some(Token::Plus));
+        assert_eq!(lexer.peek(), Some(&Token::Number(2)));
+        assert_eq!(lexer.next(), Some(Token::Number(2)));
+        assert_eq!(lexer.next(), Some(Token::Number(3)));
+        assert_eq!(lexer.next(), Some(Token::RParen));
         assert_eq!(lexer.peek(), Some(&Token::RParen));
         assert_eq!(lexer.next(), Some(Token::RParen));
         assert_eq!(lexer.next(), None);
