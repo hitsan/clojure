@@ -1,5 +1,7 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum Token {
+    LParen,
+    RParen,
     LBrace,
     RBrace,
     Number(i32),
@@ -44,6 +46,8 @@ impl<'a> Lexer<'a>  {
 
     fn lex(code: &str) -> Option<Lexed> {
         let functions = [
+            Self::l_paren, 
+            Self::r_paren,
             Self::l_brace, 
             Self::r_brace,
             Self::plus,
@@ -67,12 +71,20 @@ impl<'a> Lexer<'a>  {
         }
     }
     
+    fn l_paren(code: &str) -> Option<Lexed> {
+        Self::char(code, '(', Token::LParen)
+    }
+    
+    fn r_paren(code: &str) -> Option<Lexed> {
+        Self::char(code, ')', Token::RParen)
+    }
+
     fn l_brace(code: &str) -> Option<Lexed> {
-        Self::char(code, '(', Token::LBrace)
+        Self::char(code, '[', Token::LBrace)
     }
     
     fn r_brace(code: &str) -> Option<Lexed> {
-        Self::char(code, ')', Token::RBrace)
+        Self::char(code, ']', Token::RBrace)
     }
     
     fn plus(code: &str) -> Option<Lexed> {
@@ -117,23 +129,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_l_brace() {
+    fn test_paren() {
         let test = "()";
-        let expect = Some(Lexed::new(Token::LBrace, &")"));
-        assert_eq!(Lexer::l_brace(&test), expect);
+        let expect = Some(Lexed::new(Token::LParen, &")"));
+        assert_eq!(Lexer::l_paren(&test), expect);
 
         let test = "))";
         let expect = None;
-        assert_eq!(Lexer::l_brace(&test), expect);
+        assert_eq!(Lexer::l_paren(&test), expect);
+
+        let test = "))";
+        let expect = Some(Lexed::new(Token::RParen, &")"));
+        assert_eq!(Lexer::r_paren(&test), expect);
+
+        let test = "()";
+        let expect = None;
+        assert_eq!(Lexer::r_paren(&test), expect);
     }
 
     #[test]
-    fn test_r_brace() {
-        let test = "))";
-        let expect = Some(Lexed::new(Token::RBrace, &")"));
+    fn test_bracket() {
+        let test = "[]";
+        let expect = Some(Lexed::new(Token::LBrace, &"]"));
+        assert_eq!(Lexer::l_brace(&test), expect);
+
+        let test = "]]";
+        let expect = None;
+        assert_eq!(Lexer::l_brace(&test), expect);
+
+        let test = "]]";
+        let expect = Some(Lexed::new(Token::RBrace, &"]"));
         assert_eq!(Lexer::r_brace(&test), expect);
 
-        let test = "()";
+        let test = "[]]";
         let expect = None;
         assert_eq!(Lexer::r_brace(&test), expect);
     }
@@ -207,23 +235,27 @@ mod tests {
         assert_eq!(Lexer::lex(&test), expect);
 
         let test = "))";
-        let expect = Some(Lexed::new(Token::RBrace, &")"));
-        assert_eq!(Lexer::r_brace(&test), expect);
+        let expect = Some(Lexed::new(Token::RParen, &")"));
+        assert_eq!(Lexer::r_paren(&test), expect);
 
         let test = "~";
         let expect = None;
-        assert_eq!(Lexer::r_brace(&test), expect);
+        assert_eq!(Lexer::r_paren(&test), expect);
     }
 
     #[test]
     fn test_lexer() {
-        let code = "+12";
+        let code = "(+12)";
         let lexer = Lexer::new(&code);
         let mut lexer = lexer.peekable();
+        assert_eq!(lexer.peek(), Some(&Token::LParen));
+        assert_eq!(lexer.next(), Some(Token::LParen));
         assert_eq!(lexer.peek(), Some(&Token::Plus));
         assert_eq!(lexer.next(), Some(Token::Plus));
         assert_eq!(lexer.peek(), Some(&Token::Number(12)));
         assert_eq!(lexer.next(), Some(Token::Number(12)));
+        assert_eq!(lexer.peek(), Some(&Token::RParen));
+        assert_eq!(lexer.next(), Some(Token::RParen));
         assert_eq!(lexer.next(), None);
     }
 }
