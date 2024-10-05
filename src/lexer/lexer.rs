@@ -10,6 +10,7 @@ enum Token {
     Asterisk,
     Slash,
     Ban,
+    Underbar,
 }
 
 #[derive(Debug, PartialEq)]
@@ -109,6 +110,10 @@ impl<'a> Lexer<'a>  {
 
     fn ban(code: &str) -> Option<Lexed> {
         Self::char(code, '!', Token::Ban)
+    }
+
+    fn underbar(code: &str) -> Option<Lexed> {
+        Self::char(code, '_', Token::Underbar)
     }
     
     fn char(code: &str, target: char, token: Token) -> Option<Lexed> {
@@ -237,6 +242,17 @@ mod tests {
         let test = "1 2";
         let expect = None;
         assert_eq!(Lexer::ban(&test), expect);
+    }
+
+    #[test]
+    fn test_underbar() {
+        let test = "_ 1 2";
+        let expect = Some(Lexed::new(Token::Underbar, &" 1 2"));
+        assert_eq!(Lexer::underbar(&test), expect);
+
+        let test = "1 2";
+        let expect = None;
+        assert_eq!(Lexer::underbar(&test), expect);
     }
 
     #[test]
