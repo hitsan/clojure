@@ -55,7 +55,10 @@ impl<'a> Lexer<'a>  {
             Self::asterisk,
             Self::slash, 
             Self::number];
-        functions.iter().find_map(|f| f(code))
+        functions.iter().find_map(|f| {
+            let code = code.trim_start();
+            f(code)
+        })
     }
 
     fn number(code: &str) -> Option<Lexed> {
@@ -254,6 +257,21 @@ mod tests {
         assert_eq!(lexer.next(), Some(Token::Plus));
         assert_eq!(lexer.peek(), Some(&Token::Number(12)));
         assert_eq!(lexer.next(), Some(Token::Number(12)));
+        assert_eq!(lexer.peek(), Some(&Token::RParen));
+        assert_eq!(lexer.next(), Some(Token::RParen));
+        assert_eq!(lexer.next(), None);
+
+        let code = "( + 1 2 )";
+        let lexer = Lexer::new(&code);
+        let mut lexer = lexer.peekable();
+        assert_eq!(lexer.peek(), Some(&Token::LParen));
+        assert_eq!(lexer.next(), Some(Token::LParen));
+        assert_eq!(lexer.peek(), Some(&Token::Plus));
+        assert_eq!(lexer.next(), Some(Token::Plus));
+        assert_eq!(lexer.peek(), Some(&Token::Number(1)));
+        assert_eq!(lexer.next(), Some(Token::Number(1)));
+        assert_eq!(lexer.peek(), Some(&Token::Number(2)));
+        assert_eq!(lexer.next(), Some(Token::Number(2)));
         assert_eq!(lexer.peek(), Some(&Token::RParen));
         assert_eq!(lexer.next(), Some(Token::RParen));
         assert_eq!(lexer.next(), None);
